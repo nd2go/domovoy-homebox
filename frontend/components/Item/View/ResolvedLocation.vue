@@ -10,7 +10,7 @@
   // Component-local state: a refreshed item, collection or session never reuses a
   // previous location. Fetch only when this cell/expanded view is rendered.
   watch(
-    () => [props.item.id, props.item.updatedAt, preferences.value.collectionId, auth.attachmentToken],
+    [() => props.item.id, () => props.item.updatedAt, () => preferences.value.collectionId, () => auth.attachmentToken],
     async (_, __, onCleanup) => {
       let cancelled = false;
       onCleanup(() => {

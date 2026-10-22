@@ -59,16 +59,13 @@
   watch(activeDialog, dialog => {
     if (dialog !== DialogID.ItemChangeDetails) openingRevision++;
   });
-  watch(
-    () => [preferences.value.collectionId, auth.attachmentToken],
-    () => {
-      openingRevision++;
-      items.value = [];
-      locationDetails.value = new Map();
-      newLocation.value = null;
-      if (activeDialog.value === DialogID.ItemChangeDetails) closeDialog(DialogID.ItemChangeDetails);
-    }
-  );
+  watch([() => preferences.value.collectionId, () => auth.attachmentToken], () => {
+    openingRevision++;
+    items.value = [];
+    locationDetails.value = new Map();
+    newLocation.value = null;
+    if (activeDialog.value === DialogID.ItemChangeDetails) closeDialog(DialogID.ItemChangeDetails);
+  });
 
   const availableToAddTags = ref<TagOut[]>([]);
   const availableToRemoveTags = ref<TagOut[]>([]);

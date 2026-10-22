@@ -109,6 +109,25 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
   await expect(unchangedDialog.getByRole("combobox", { name: "Parent Location", exact: true })).toContainText(
     roomA.name
   );
+  // A normal settings refresh replaces preferences without changing collection/session.
+  // It must not be treated as leaving the dialog's context.
+  const settingsURL = "/api/v1/users/self/settings";
+  const settingsResponse = await page.request.get(settingsURL);
+  expect(settingsResponse.status()).toBe(200);
+  const settings: { item: Record<string, unknown> } = await settingsResponse.json();
+  const settingsRefresh = page.waitForResponse(
+    response => response.url().endsWith(settingsURL) && response.request().method() === "GET"
+  );
+  const settingsSaved = await page.request.put(settingsURL, { data: settings.item });
+  expect(settingsSaved.status()).toBe(200);
+  const refreshed = await settingsRefresh;
+  expect(refreshed.status()).toBe(200);
+  await refreshed.finished();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+  await expect(unchangedDialog).toBeVisible();
+  await expect(unchangedDialog.getByRole("combobox", { name: "Parent Location", exact: true })).toContainText(
+    roomA.name
+  );
   const unchanged = page.waitForResponse(
     response => response.url().endsWith(`/api/v1/entities/${first.id}`) && response.request().method() === "PATCH"
   );
@@ -209,7 +228,7 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
   try {
     await batchDialog.getByRole("button", { name: "Save", exact: true }).click();
     await firstWrite;
-    await expect(batchDialog.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await expect(batchDialog.locator("button[type='submit']")).toBeDisabled();
     await expect(batchDialog.getByRole("button", { name: "Close", exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(batchDialog).toBeVisible();
