@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 test("valid login", async ({ page }) => {
@@ -22,6 +23,7 @@ test("invalid login", async ({ page }) => {
 
 test("registration", async ({ page }) => {
   test.slow();
+  const email = `test-${randomUUID()}@example.com`;
   // Register a new user
   await page.goto("/home");
   await expect(page).toHaveURL("/");
@@ -29,7 +31,7 @@ test("registration", async ({ page }) => {
 
   await page.waitForTimeout(1000);
 
-  await page.getByTestId("email-input").locator("input").fill("test@example.com");
+  await page.getByTestId("email-input").locator("input").fill(email);
   await page.getByTestId("name-input").locator("input").fill("Test User");
   await page.getByTestId("password-input").locator("input").fill("ThisIsAStrongDemoPass");
   const registrationResponse = page.waitForResponse(
@@ -43,7 +45,7 @@ test("registration", async ({ page }) => {
   await page.goto("/home");
   await expect(page).toHaveURL("/");
   await page.getByTestId("register-button").click();
-  await page.getByTestId("email-input").locator("input").fill("test@example.com");
+  await page.getByTestId("email-input").locator("input").fill(email);
   await page.getByTestId("name-input").locator("input").fill("Test User");
   await page.getByTestId("password-input").locator("input").fill("ThisIsAStrongDemoPass");
   await page.getByTestId("confirm-register-button").click();
