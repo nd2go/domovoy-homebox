@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { EntitySummary } from "../api/types/data-contracts";
-import { commonItemLocation, loadItemLocation } from "./location";
+import { commonItemLocation, itemLocationChange, loadItemLocation } from "./location";
 
 function location(id: string): EntitySummary {
   return {
@@ -56,5 +56,36 @@ describe("resolved item locations", () => {
     expect(commonItemLocation([room, null])).toBeNull();
     expect(commonItemLocation([room, location("other-room")])).toBeNull();
     expect(commonItemLocation([])).toBeNull();
+  });
+
+  test("leaves unchanged inherited and explicit locations untouched", () => {
+    const room = location("room");
+    expect(itemLocationChange({ location: room, parent: { entityType: { isLocation: false } } }, room)).toEqual({});
+    expect(itemLocationChange({ location: room, parent: null }, room)).toEqual({});
+  });
+
+  test("moves nested items physically without changing their logical parent", () => {
+    expect(
+      itemLocationChange(
+        { location: location("old-room"), parent: { entityType: { isLocation: false } } },
+        location("new-room")
+      )
+    ).toEqual({ locationId: "new-room" });
+  });
+
+  test("moves direct location children by parent as required by the API", () => {
+    expect(
+      itemLocationChange(
+        { location: location("old-room"), parent: { entityType: { isLocation: true } } },
+        location("new-room")
+      )
+    ).toEqual({ parentId: "new-room" });
+  });
+
+  test("does not guess a missing parent type when changing location", () => {
+    expect(itemLocationChange({ location: location("old-room"), parent: {} }, location("new-room"))).toBeNull();
+    expect(itemLocationChange({ location: null, parent: null }, location("new-room"))).toEqual({
+      locationId: "new-room",
+    });
   });
 });

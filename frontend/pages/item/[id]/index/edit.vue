@@ -49,6 +49,7 @@
   const entityTypeStore = useEntityTypeStore();
 
   const itemId = computed<string>(() => route.params.id as string);
+  const persistedEntityTypeId = ref<string | null>(null);
 
   const tagStore = useTagStore();
   const tags = computed(() => tagStore.tags);
@@ -64,6 +65,8 @@
       navigateTo("/home");
       return;
     }
+
+    persistedEntityTypeId.value = data.entityType?.id ?? null;
 
     if (data.parent && data.parent.entityType && !data.parent.entityType.isLocation) {
       parent.value = data.parent;
@@ -154,6 +157,7 @@
       return;
     }
 
+    persistedEntityTypeId.value = payload.entityTypeId;
     toast.success(t("items.toast.item_saved"));
     if (isConvertingToLocation) {
       navigateTo("/location/" + itemId.value);
@@ -578,7 +582,7 @@
       return;
     }
 
-    if (!item.value.entityType?.id) {
+    if (!persistedEntityTypeId.value) {
       toast.error(t("items.toast.failed_save"));
       return;
     }
@@ -588,7 +592,8 @@
       parentId: parent.value?.id || location.value?.id || null,
       locationId: parent.value?.id && locationExplicit.value ? location.value?.id || null : null,
       tagIds: item.value.tagIds,
-      entityTypeId: item.value.entityType.id,
+      // The type selector is a draft until saveItem confirms and saves it.
+      entityTypeId: persistedEntityTypeId.value,
       assetId: item.value.assetId,
       syncChildEntityLocations: item.value.syncChildEntityLocations,
     };

@@ -51,6 +51,34 @@ jobs:
         run: go mod download
         working-directory: backend
 
+      - name: Configure APT downloads on the CI runner
+        run: |
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          apt = Path("/etc/apt")
+          sources = [
+              apt / "sources.list",
+              apt / "apt-mirrors.txt",
+              *sorted((apt / "sources.list.d").glob("*.list")),
+              *sorted((apt / "sources.list.d").glob("*.sources")),
+          ]
+          azure = re.compile(rb"https?://azure\.archive\.ubuntu\.com/ubuntu(?=[/\s]|$)")
+          for source in sources:
+              if source.is_file():
+                  original = source.read_bytes()
+                  updated = azure.sub(b"https://archive.ubuntu.com/ubuntu", original)
+                  if updated != original:
+                      source.write_bytes(updated)
+
+          (apt / "apt.conf.d" / "99domovoy-ci-network").write_bytes(
+              b'Acquire::http::Timeout "30";\n'
+              b'Acquire::https::Timeout "30";\n'
+              b'Acquire::Retries "2";\n'
+          )
+          PY
+
       - name: Run E2E Tests
         run: task test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
