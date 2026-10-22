@@ -3,6 +3,10 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { EntityCreate, EntityOut, EntityTypeSummary } from "../../lib/api/types/data-contracts";
 
+// This scenario injects a failed API read with page.route; a PWA service worker
+// can otherwise serve that read without passing through Playwright routing.
+test.use({ serviceWorkers: "block" });
+
 async function createEntity(request: APIRequestContext, body: EntityCreate): Promise<EntityOut> {
   const response = await request.post("/api/v1/entities", { data: body });
   expect(response.status()).toBe(201);
