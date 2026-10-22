@@ -27,6 +27,7 @@ jobs:
           version: 10
 
       - name: Install dependencies
+        id: install
         run: pnpm install --frozen-lockfile
         working-directory: frontend
 
@@ -35,10 +36,12 @@ jobs:
         working-directory: frontend
 
       - name: Run Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm run typecheck
         working-directory: frontend
 
       - name: Build frontend
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm run build
         working-directory: frontend
 
