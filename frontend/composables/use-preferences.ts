@@ -39,7 +39,10 @@ export type LocationViewPreferences = {
   }[];
 };
 export type PreferenceSyncConfig = Partial<Record<keyof LocationViewPreferences, boolean>>;
-type PreferenceChange = true | Record<string, PreferenceChange>;
+interface PreferenceChangeMap {
+  [key: string]: PreferenceChange;
+}
+type PreferenceChange = true | PreferenceChangeMap;
 type PreferenceChanges = Partial<Record<keyof LocationViewPreferences, PreferenceChange>>;
 
 const DEFAULT_PREFERENCES: LocationViewPreferences = {

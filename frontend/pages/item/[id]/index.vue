@@ -602,8 +602,11 @@
       fields: item.value.fields.map(field => ({
         id: NIL_UUID,
         name: field.name,
-        type: "text",
-        textValue: field.textValue || "",
+        type: field.type,
+        textValue: field.textValue,
+        booleanValue: field.booleanValue,
+        numberValue: field.numberValue,
+        timeValue: "",
       })),
     };
 
