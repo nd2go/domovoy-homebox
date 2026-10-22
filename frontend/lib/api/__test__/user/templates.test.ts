@@ -129,8 +129,24 @@ describe("templates lifecycle (create, update, delete)", () => {
 
     const templateData = factories.template();
     templateData.fields = [
-      { id: NIL_UUID, name: "Custom Field 1", type: "text", textValue: "Value 1" },
-      { id: NIL_UUID, name: "Custom Field 2", type: "text", textValue: "Value 2" },
+      {
+        id: NIL_UUID,
+        name: "Custom Field 1",
+        type: "text",
+        textValue: "Value 1",
+        booleanValue: false,
+        numberValue: 0,
+        timeValue: "",
+      },
+      {
+        id: NIL_UUID,
+        name: "Custom Field 2",
+        type: "text",
+        textValue: "Value 2",
+        booleanValue: false,
+        numberValue: 0,
+        timeValue: "",
+      },
     ];
 
     const { response, data } = await api.templates.create(templateData);
@@ -153,7 +169,17 @@ describe("templates lifecycle (create, update, delete)", () => {
 
     // Create template with a field
     const templateData = factories.template();
-    templateData.fields = [{ id: NIL_UUID, name: "Original Field", type: "text", textValue: "Original Value" }];
+    templateData.fields = [
+      {
+        id: NIL_UUID,
+        name: "Original Field",
+        type: "text",
+        textValue: "Original Value",
+        booleanValue: false,
+        numberValue: 0,
+        timeValue: "",
+      },
+    ];
 
     const { response: createResponse, data: createdTemplate } = await api.templates.create(templateData);
     expect(createResponse.status).toBe(201);
@@ -179,8 +205,24 @@ describe("templates lifecycle (create, update, delete)", () => {
       includePurchaseFields: createdTemplate.includePurchaseFields,
       includeSoldFields: createdTemplate.includeSoldFields,
       fields: [
-        { id: createdTemplate.fields![0]!.id, name: "Updated Field", type: "text", textValue: "Updated Value" },
-        { id: NIL_UUID, name: "New Field", type: "text", textValue: "New Value" },
+        {
+          id: createdTemplate.fields![0]!.id,
+          name: "Updated Field",
+          type: "text",
+          textValue: "Updated Value",
+          booleanValue: false,
+          numberValue: 0,
+          timeValue: "",
+        },
+        {
+          id: NIL_UUID,
+          name: "New Field",
+          type: "text",
+          textValue: "New Value",
+          booleanValue: false,
+          numberValue: 0,
+          timeValue: "",
+        },
       ],
     };
 
@@ -202,7 +244,7 @@ describe("templates with location and tags", () => {
     const api = await sharedUserClient();
 
     // First create a location
-    const locationData = factories.location();
+    const locationData = await factories.location(api);
     const { response: locResponse, data: location } = await api.items.createLocation(locationData);
     expect(locResponse.status).toBe(201);
 
@@ -253,7 +295,7 @@ describe("templates with location and tags", () => {
     const api = await sharedUserClient();
 
     // Create a location
-    const { response: locResponse, data: location } = await api.items.createLocation(factories.location());
+    const { response: locResponse, data: location } = await api.items.createLocation(await factories.location(api));
     expect(locResponse.status).toBe(201);
 
     // Create template with location

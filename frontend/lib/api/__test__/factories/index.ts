@@ -4,6 +4,8 @@ import { overrideParts } from "../../base/urls";
 import { PublicApi } from "../../public";
 import type {
   EntityFieldData,
+  EntityOut,
+  EntityUpdate,
   EntityTemplateCreate,
   TagCreate,
   EntityCreate,
@@ -13,16 +15,14 @@ import * as config from "../../../../test/config";
 import { UserClient } from "../../user";
 import { Requests } from "../../../requests";
 
-function itemField(id = null): EntityFieldData {
+function itemField(id = "00000000-0000-0000-0000-000000000000"): EntityFieldData {
   return {
-    // @ts-expect-error - not actually an issue
     id,
     name: faker.lorem.word(),
     type: "text",
     textValue: faker.lorem.sentence(),
     booleanValue: false,
     numberValue: faker.number.int(),
-    timeValue: "",
   };
 }
 
@@ -39,11 +39,36 @@ function user(): UserRegistration {
   };
 }
 
-function location(parentId: string | null = null): Partial<EntityCreate> & { name: string; description: string } {
+async function entityTypeId(api: UserClient, isLocation = false): Promise<string> {
+  const { response, data } = await api.entityTypes.getAll();
+  expect(response.status).toBe(200);
+  const entityType = data.find(type => type.isLocation === isLocation);
+  if (!entityType) {
+    throw new Error(`Expected a ${isLocation ? "location" : "item"} entity type`);
+  }
+  return entityType.id;
+}
+
+async function location(api: UserClient, parentId: string | null = null): Promise<EntityCreate> {
   return {
     parentId,
     name: faker.location.city(),
     description: faker.lorem.sentence(),
+    entityTypeId: await entityTypeId(api, true),
+    quantity: 1,
+    tagIds: [],
+  };
+}
+
+function itemUpdate(item: EntityOut): EntityUpdate {
+  if (!item.entityType) {
+    throw new Error("Expected the item's entity type");
+  }
+  return {
+    ...item,
+    entityTypeId: item.entityType.id,
+    parentId: item.parent?.id ?? null,
+    tagIds: item.tags.map(tag => tag.id),
   };
 }
 
@@ -52,6 +77,7 @@ function tag(): TagCreate {
     name: faker.lorem.word(),
     description: faker.lorem.sentence(),
     color: faker.color.rgb(),
+    icon: "",
   };
 }
 
@@ -113,6 +139,8 @@ async function userSingleUse(): Promise<TestUser> {
 export const factories = {
   user,
   location,
+  entityTypeId,
+  itemUpdate,
   tag,
   template,
   itemField,
