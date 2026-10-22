@@ -3,6 +3,12 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { EntityCreate, EntityOut, EntityTypeSummary } from "../../lib/api/types/data-contracts";
 
+declare global {
+  interface Window {
+    __ci01UserEvents: { openConnections: number; lastActivity: number | null };
+  }
+}
+
 test.use({ serviceWorkers: "block", trace: "retain-on-failure" });
 
 async function createEntity(request: APIRequestContext, body: EntityCreate): Promise<EntityOut> {
@@ -19,6 +25,9 @@ async function getEntity(request: APIRequestContext, id: string): Promise<Entity
 
 async function openLocationChange(page: Page, itemName: string) {
   const row = page.getByRole("row").filter({ has: page.getByText(itemName, { exact: true }) });
+  const locationCell = row.getByRole("cell").nth(2);
+  await locationCell.scrollIntoViewIfNeeded();
+  await expect(locationCell.getByRole("link")).toBeVisible();
   await row.getByRole("button", { name: "Open menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Change Location", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Change Item Details", exact: true });
@@ -30,6 +39,33 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
   test.slow();
   const unique = randomUUID();
   await page.addInitScript(() => {
+    const events = { openConnections: 0, lastActivity: null as number | null };
+    window.__ci01UserEvents = events;
+    const NativeWebSocket = window.WebSocket;
+    // Observe the native connection and messages without replacing the server
+    // event stream or changing the application's handlers.
+    window.WebSocket = class extends NativeWebSocket {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols);
+        if (new URL(url, window.location.href).pathname !== "/api/v1/ws/events") return;
+        let opened = false;
+        this.addEventListener("open", () => {
+          opened = true;
+          events.openConnections += 1;
+          events.lastActivity = performance.now();
+        });
+        this.addEventListener("close", () => {
+          if (opened) events.openConnections -= 1;
+        });
+        this.addEventListener("message", message => {
+          if (typeof message.data !== "string") return;
+          const data: unknown = JSON.parse(message.data);
+          if (data && typeof data === "object" && "event" in data && data.event === "user.mutation") {
+            events.lastActivity = performance.now();
+          }
+        });
+      }
+    };
     localStorage.setItem(
       "homebox/preferences/location",
       JSON.stringify({
@@ -38,6 +74,13 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
         tableHeaders: [
           { value: "name", enabled: true },
           { value: "location", enabled: true },
+          { value: "assetId", enabled: false },
+          { value: "quantity", enabled: false },
+          { value: "insured", enabled: false },
+          { value: "purchasePrice", enabled: false },
+          { value: "archived", enabled: false },
+          { value: "createdAt", enabled: false },
+          { value: "updatedAt", enabled: false },
         ],
       })
     );
@@ -105,6 +148,7 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
     await page.evaluate(() => document.cookie.split(";").some(cookie => cookie.trim() === "hb.auth.session=true"))
   ).toBe(true);
   await page.goto(`/search?q=${unique}`);
+  await expect(page.getByRole("columnheader")).toHaveCount(4);
   const unchangedDialog = await openLocationChange(page, first.name);
   await expect(unchangedDialog.getByRole("combobox", { name: "Parent Location", exact: true })).toContainText(
     roomA.name
@@ -115,6 +159,19 @@ test("location saves retain nested parents and a submitted batch cannot be dismi
   const settingsResponse = await page.request.get(settingsURL);
   expect(settingsResponse.status()).toBe(200);
   const settings: { item: Record<string, unknown> } = await settingsResponse.json();
+  // use-server-events applies a 1000ms leading throttle with no trailing call.
+  // Wait for the native open/latest mutation window to expire before our real
+  // PUT, otherwise a preceding preferences autosave can suppress its event.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const events = window.__ci01UserEvents;
+        return (
+          events.openConnections > 0 && events.lastActivity !== null && performance.now() - events.lastActivity >= 1000
+        );
+      })
+    )
+    .toBe(true);
   const settingsRefresh = page.waitForResponse(
     response => response.url().endsWith(settingsURL) && response.request().method() === "GET"
   );
