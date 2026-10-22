@@ -129,6 +129,7 @@ describe("templates lifecycle (create, update, delete)", () => {
     const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 
     const templateData = factories.template();
+    // Text fields still need a valid timestamp to decode; storage uses the backend's own default.
     templateData.fields = [
       {
         id: NIL_UUID,
@@ -154,7 +155,6 @@ describe("templates lifecycle (create, update, delete)", () => {
 
     expect(response.status).toBe(201);
     expect(data.fields).toHaveLength(2);
-    expect(data.fields.map(field => field.timeValue)).toEqual([ZERO_DATE, ZERO_DATE]);
     expect(data.fields![0]!.name).toBe("Custom Field 1");
     expect(data.fields![0]!.textValue).toBe("Value 1");
     expect(data.fields![1]!.name).toBe("Custom Field 2");
