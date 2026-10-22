@@ -20,6 +20,7 @@
   import Checkbox from "~/components/ui/checkbox/Checkbox.vue";
   import Label from "~/components/ui/label/Label.vue";
   import type { EntitySummary } from "~/lib/api/types/data-contracts";
+  import { provideItemLocationLoader } from "~/composables/use-item-location-loader";
 
   import TableView from "./table-view.vue";
   import CardView from "./card-view.vue";
@@ -41,6 +42,7 @@
   }>();
 
   const preferences = useViewPreferences();
+  provideItemLocationLoader(() => props.data);
   const defaultPageSize = preferences.value.itemsPerTablePage;
   const tableHeadersData = preferences.value.tableHeaders;
   const defaultVisible = ["name", "quantity", "insured", "purchasePrice"];
