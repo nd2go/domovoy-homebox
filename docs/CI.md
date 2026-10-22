@@ -19,9 +19,21 @@ its job and Required red; no failing command uses `continue-on-error`.
 
 Open a pull request's **Checks** tab to inspect the failing step. Browser jobs
 retain blob reports and failure traces for seven days, then merge available
-reports into an HTML report retained for 30 days. Backend coverage is retained
+reports into an HTML report, including its attachments, retained for 30 days.
+Backend coverage is retained
 for seven days when generated. Only these test outputs are uploaded; databases,
-settings and credentials are excluded.
+settings and owner or static service credentials are excluded. Browser failure
+traces can contain session cookies for synthetic test accounts on the isolated
+runner, including trace attachments in the merged HTML report.
+
+Before Playwright installs its system dependencies, the GitHub Ubuntu runner
+replaces only the Azure Ubuntu archive URL with `https://archive.ubuntu.com/ubuntu`
+in its existing APT sources and `apt-mirrors.txt` mirror list, preserving other
+URLs, mirror priorities and source settings. Runner-only APT settings apply
+30-second HTTP/HTTPS connection and data timeouts and two retries per failed
+download. These limit stalled downloads; the 60-minute browser job timeout still
+bounds the whole job.
+Local APT configuration and the dependency versions/package list are unchanged.
 
 Repository-native commands used by CI:
 
