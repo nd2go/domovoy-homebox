@@ -32,7 +32,11 @@ test("registration", async ({ page }) => {
   await page.getByTestId("email-input").locator("input").fill("test@example.com");
   await page.getByTestId("name-input").locator("input").fill("Test User");
   await page.getByTestId("password-input").locator("input").fill("ThisIsAStrongDemoPass");
+  const registrationResponse = page.waitForResponse(
+    response => response.url().endsWith("/api/v1/users/register") && response.request().method() === "POST"
+  );
   await page.getByTestId("confirm-register-button").click();
+  expect((await registrationResponse).status()).toBe(204);
   await expect(page).toHaveURL("/");
 
   // Try to register the same user again (it should fail)
