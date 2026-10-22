@@ -19,9 +19,12 @@ its job and Required red; no failing command uses `continue-on-error`.
 
 Open a pull request's **Checks** tab to inspect the failing step. Browser jobs
 retain blob reports and failure traces for seven days, then merge available
-reports into an HTML report retained for 30 days. Backend coverage is retained
+reports into an HTML report, including its attachments, retained for 30 days.
+Backend coverage is retained
 for seven days when generated. Only these test outputs are uploaded; databases,
-settings and credentials are excluded.
+settings and owner or static service credentials are excluded. Browser failure
+traces can contain session cookies for synthetic test accounts on the isolated
+runner, including trace attachments in the merged HTML report.
 
 Repository-native commands used by CI:
 
