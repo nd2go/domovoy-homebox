@@ -37,7 +37,11 @@ task test:e2e -- --shard=1/4
 ```
 
 Each integration task runs in its own job with the synthetic database settings
-in `Taskfile.yml`; the PostgreSQL jobs supply their isolated service. The e2e
+in `Taskfile.yml`; the PostgreSQL jobs supply their isolated service. These two
+steps set `HBOX_AUTH_RATE_LIMIT_ENABLED=false`: many synthetic users register
+from one runner IP, exceeding the normal five-per-minute registration limit.
+The backend Go suite retains its default settings and dedicated rate-limit tests;
+production configuration is unchanged. The e2e
 shard command is repeated for shards 1–4. Local execution requires the versions
 already declared upstream (Go from `backend/go.mod`, Node 24 and pnpm 10), Task,
 and a local test PostgreSQL instance for PostgreSQL integration tests.

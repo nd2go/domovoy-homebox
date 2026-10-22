@@ -92,6 +92,10 @@ jobs:
 
       - name: Run Integration Tests
         run: task test:ci
+        # These synthetic API tests register many users from one runner IP.
+        # Rate limiting is tested separately by the backend Go suite.
+        env:
+          HBOX_AUTH_RATE_LIMIT_ENABLED: "false"
   integration-tests-pgsql:
     strategy:
         matrix:
@@ -145,3 +149,5 @@ jobs:
 
       - name: Run Integration Tests
         run: task test:ci:postgresql
+        env:
+          HBOX_AUTH_RATE_LIMIT_ENABLED: "false"
