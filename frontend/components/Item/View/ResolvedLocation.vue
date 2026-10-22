@@ -24,6 +24,16 @@
   });
   onBeforeUnmount(() => observer?.disconnect());
 
+  // Visibility only controls loading. Retain known content offscreen so that
+  // scrolling cannot change row heights or make the observer oscillate.
+  watch(
+    [() => props.item.id, () => props.item.updatedAt, loader.generation],
+    () => {
+      location.value = null;
+    },
+    { immediate: true, flush: "sync" }
+  );
+
   // Offscreen rows do not enqueue requests. A table cell and its expanded view
   // share a promise, while fresh data/context always starts a new generation.
   watch(
@@ -33,7 +43,6 @@
       onCleanup(() => {
         cancelled = true;
       });
-      location.value = null;
       if (!visible.value) return;
       const generation = loader.generation.value;
       const resolved = await loader.load(props.item.id, props.item.updatedAt);

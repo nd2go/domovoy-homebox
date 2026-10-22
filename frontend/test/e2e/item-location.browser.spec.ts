@@ -41,6 +41,13 @@ test("nested creation inherits the parent location and location dialogs never re
         tableHeaders: [
           { value: "name", enabled: true },
           { value: "location", enabled: true },
+          { value: "assetId", enabled: false },
+          { value: "quantity", enabled: false },
+          { value: "insured", enabled: false },
+          { value: "purchasePrice", enabled: false },
+          { value: "archived", enabled: false },
+          { value: "createdAt", enabled: false },
+          { value: "updatedAt", enabled: false },
         ],
       })
     );
@@ -130,12 +137,16 @@ test("nested creation inherits the parent location and location dialogs never re
   // Parent pages use effective-location filtering: the explicit child stored
   // elsewhere belongs in that location's listing. Search includes both records.
   await page.goto(`/search?q=${unique}`);
+  await expect(page.getByRole("columnheader")).toHaveCount(4);
   const inheritedRow = page.getByRole("row").filter({ has: page.getByText(childName, { exact: true }) });
   const explicitRow = page.getByRole("row").filter({ has: page.getByText(explicit.name, { exact: true }) });
+  // Location reads start when their cell approaches the viewport.
+  await inheritedRow.getByRole("cell").nth(2).scrollIntoViewIfNeeded();
   await expect(inheritedRow.getByRole("link", { name: roomA.name, exact: true })).toHaveAttribute(
     "href",
     `/location/${roomA.id}`
   );
+  await explicitRow.getByRole("cell").nth(2).scrollIntoViewIfNeeded();
   await expect(explicitRow.getByRole("link", { name: roomB.name, exact: true })).toHaveAttribute(
     "href",
     `/location/${roomB.id}`
@@ -181,6 +192,7 @@ test("nested creation inherits the parent location and location dialogs never re
 
   await page.reload();
   const failedRow = page.getByRole("row").filter({ has: page.getByText(explicit.name, { exact: true }) });
+  await failedRow.getByRole("cell").nth(2).scrollIntoViewIfNeeded();
   await expect(failedRow.getByText("Unknown", { exact: true })).toBeVisible();
   await expect(failedRow.locator(`a[href='/location/${box.id}']`)).toHaveCount(0);
 });

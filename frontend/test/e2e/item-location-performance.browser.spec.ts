@@ -73,6 +73,9 @@ async function painted(page: Page) {
 test("MOCK API: 96-row locations load near the viewport with four requests and share expanded-row cache", async ({
   page,
 }) => {
+  // WebKit's observed cold page setup consumed 21.8s before this multi-phase
+  // scenario reached its first search. Keep the shared timeout/retries intact.
+  test.slow();
   const unique = randomUUID();
   const eventSockets: WebSocketRoute[] = [];
   // Other real browser scenarios share this demo account and emit mutations.
@@ -90,6 +93,13 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     tableHeaders: [
       { value: "name", enabled: true },
       { value: "location", enabled: true },
+      { value: "assetId", enabled: false },
+      { value: "quantity", enabled: false },
+      { value: "insured", enabled: false },
+      { value: "purchasePrice", enabled: false },
+      { value: "archived", enabled: false },
+      { value: "createdAt", enabled: false },
+      { value: "updatedAt", enabled: false },
     ],
   };
   await page.addInitScript(value => {
@@ -123,6 +133,8 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
   const last = items.at(-1)!;
   const byID = new Map(items.map(item => [item.id, item]));
   const counts = new Map<string, number>();
+  const initialPositions = new Map<string, { top: number; bottom: number; viewportHeight: number } | null>();
+  let measureInitialRequests = true;
   let active = 0;
   let maximumActive = 0;
   let firstLocation = roomA;
@@ -161,6 +173,19 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     active += 1;
     maximumActive = Math.max(maximumActive, active);
     try {
+      if (measureInitialRequests) {
+        // Measure while this request is intercepted and all responses are still
+        // gated. Later room names can reflow the table and change row bounds.
+        initialPositions.set(
+          id,
+          await page.evaluate(itemID => {
+            const row = document.querySelector(`a[href="/item/${itemID}"]`)?.closest("tr");
+            if (!row) return null;
+            const box = row.getBoundingClientRect();
+            return { top: box.top, bottom: box.bottom, viewportHeight: innerHeight };
+          }, id)
+        );
+      }
       await detailGate;
       await route.fulfill(
         id === first.id && failFirst
@@ -187,13 +212,23 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     await page.goto(`/search?q=${unique}`);
     await expect.poll(() => eventSockets.length).toBeGreaterThan(oldSocketCount);
     await expect(page.getByRole("row").filter({ has: page.getByText(/Mock item \d{2}/) })).toHaveCount(96);
+    await expect(page.getByRole("columnheader")).toHaveCount(4);
     await expect.poll(() => active).toBe(4);
+    await expect.poll(() => initialPositions.size).toBe(4);
     await painted(page);
     expect(maximumActive).toBe(4);
     expect(counts.size).toBe(4);
+    for (const [id, position] of initialPositions) {
+      expect(position, `Request-time row bounds for ${id}`).not.toBeNull();
+      if (position) {
+        expect(position.bottom).toBeGreaterThanOrEqual(-200);
+        expect(position.top).toBeLessThanOrEqual(position.viewportHeight + 200);
+      }
+    }
 
     // A completed first screen must not enqueue all 96 rendered rows. The last
     // offscreen row remains Unknown until the user actually scrolls to it.
+    measureInitialRequests = false;
     releaseDetails();
     const nearNames = await page.getByRole("row").evaluateAll(rows =>
       rows.flatMap(row => {
@@ -218,17 +253,6 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     await painted(page);
     expect(maximumActive).toBeLessThanOrEqual(4);
     expect(counts.size).toBeLessThanOrEqual(48);
-    const initialNames = [...counts.keys()].map(id => byID.get(id)!.name);
-    const farRequests = await page.getByRole("row").evaluateAll(
-      (rows, names) =>
-        rows.flatMap(row => {
-          const name = row.querySelector("td:nth-child(2)")?.textContent?.trim();
-          const box = row.getBoundingClientRect();
-          return name && names.includes(name) && (box.bottom < -200 || box.top > innerHeight + 200) ? [name] : [];
-        }),
-      initialNames
-    );
-    expect(farRequests).toEqual([]);
     expect(counts.has(last.id)).toBe(false);
     await expect(lastRow.getByText("Unknown", { exact: true })).toHaveCount(1);
 
@@ -236,6 +260,10 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     await expect(lastRow.getByRole("link", { name: roomA.name, exact: true })).toBeVisible();
     expect(counts.get(last.id)).toBe(1);
     expect(maximumActive).toBeLessThanOrEqual(4);
+    // Leaving the viewport must retain known content, so it cannot collapse
+    // rows or oscillate their intersection state as the user scrolls.
+    await expect(firstRow.getByRole("link", { name: roomA.name, exact: true })).toHaveCount(1);
+    expect(counts.get(first.id)).toBe(1);
 
     await firstRow.scrollIntoViewIfNeeded();
     await expect(firstRow.getByRole("link", { name: roomA.name, exact: true })).toBeVisible();
@@ -285,6 +313,6 @@ test("MOCK API: 96-row locations load near the viewport with four requests and s
     expect(maximumActive).toBeLessThanOrEqual(4);
   } finally {
     releaseDetails();
-    await page.unrouteAll({ behavior: "wait" });
+    if (!page.isClosed()) await page.unrouteAll({ behavior: "ignoreErrors" });
   }
 });
