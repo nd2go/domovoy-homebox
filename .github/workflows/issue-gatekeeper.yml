@@ -9,6 +9,7 @@ on:
 
 jobs:
   check-permissions:
+    if: github.repository == 'sysadminsmedia/homebox'
     runs-on: ubuntu-latest
     steps:
       - name: Verify Internal Template Use

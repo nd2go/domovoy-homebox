@@ -1,34 +1,47 @@
-name: Pull Request CI
-
-permissions:
-  contents: read
-  actions: read
-  checks: write
-  pull-requests: write
+name: CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - vnext
+  push:
+    branches: [main]
+  workflow_dispatch:
 
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/partial-backend.yaml'
-      - '.github/workflows/partial-frontend.yaml'
-      - '.github/workflows/e2e-partial.yaml'
-      - '.github/workflows/pull-requests.yaml'
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend-tests:
-    name: "Backend Server Tests"
+    name: Backend
     uses: ./.github/workflows/partial-backend.yaml
 
   frontend-tests:
-    name: "Frontend Tests"
+    name: Frontend
     uses: ./.github/workflows/partial-frontend.yaml
 
   e2e-tests:
-    name: "End-to-End Playwright Tests"
+    name: Browser
     uses: ./.github/workflows/e2e-partial.yaml
+
+  required:
+    name: Required
+    if: ${{ always() }}
+    needs: [backend-tests, frontend-tests, e2e-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Report required checks
+        env:
+          BACKEND_RESULT: ${{ needs['backend-tests'].result }}
+          FRONTEND_RESULT: ${{ needs['frontend-tests'].result }}
+          BROWSER_RESULT: ${{ needs['e2e-tests'].result }}
+        run: |
+          printf '## CI results\n\n| Check | Result |\n| --- | --- |\n| Backend | %s |\n| Frontend | %s |\n| Browser | %s |\n\n' "$BACKEND_RESULT" "$FRONTEND_RESULT" "$BROWSER_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          printf '[Run logs and artifacts](%s/%s/actions/runs/%s)\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BACKEND_RESULT" != success ] || [ "$FRONTEND_RESULT" != success ] || [ "$BROWSER_RESULT" != success ]; then
+            echo "::error::Required checks must succeed; Backend=$BACKEND_RESULT, Frontend=$FRONTEND_RESULT, Browser=$BROWSER_RESULT"
+            exit 1
+          fi

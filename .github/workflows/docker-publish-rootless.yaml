@@ -37,6 +37,7 @@ env:
 
 jobs:
   build:
+    if: github.repository == 'sysadminsmedia/homebox'
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -157,7 +158,7 @@ jobs:
           retention-days: 1
 
   merge:
-    if: github.event_name != 'pull_request'
+    if: github.repository == 'sysadminsmedia/homebox' && (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       contents: read

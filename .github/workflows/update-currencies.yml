@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   update-currencies:
+    if: github.repository == 'sysadminsmedia/homebox'
     runs-on: ubuntu-latest
 
     steps:

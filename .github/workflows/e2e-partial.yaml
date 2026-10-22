@@ -2,9 +2,6 @@ name: E2E (Playwright)
 
 permissions:
   contents: read
-  actions: read
-  checks: write
-  pull-requests: write
 
 on:
   workflow_call:
@@ -14,15 +11,17 @@ jobs:
   playwright-tests:
     timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         shardIndex: [1,2,3,4]
         shardTotal: [4]
     name: E2E Playwright Testing ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install Task
@@ -38,14 +37,14 @@ jobs:
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
-          node-version: lts/*
+          node-version: "24"
 
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 10
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Install Go Dependencies
@@ -61,24 +60,36 @@ jobs:
         with:
           name: blob-report-${{ matrix.shardIndex }}
           path: frontend/blob-report/
-          retention-days: 2
+          retention-days: 7
+
+      - name: Upload browser failure traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-traces-${{ matrix.shardIndex }}
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   merge-reports:
     # Merge reports after playwright-tests, even if some shards have failed
     if: ${{ !cancelled() }}
     needs: [playwright-tests]
     name: Merge Playwright Reports
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
-          node-version: lts/*
+          node-version: "24"
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 10
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Download blob reports from GitHub Actions Artifacts

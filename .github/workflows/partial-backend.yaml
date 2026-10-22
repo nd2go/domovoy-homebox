@@ -2,18 +2,18 @@ name: Go Build/Test
 
 permissions:
   contents: read
-  actions: read
-  checks: write
-  pull-requests: write
 
 on:
   workflow_call:
 
 jobs:
   Go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
@@ -41,3 +41,12 @@ jobs:
 
       - name: Test
         run: task go:coverage
+
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+          if-no-files-found: ignore
+          retention-days: 7
