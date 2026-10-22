@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { EntityTemplateOut } from "../../types/data-contracts";
+import { ZERO_DATE } from "../../base/base-api";
 import type { UserClient } from "../../user";
 import { factories } from "../factories";
 import { sharedUserClient } from "../test-utils";
@@ -136,7 +137,7 @@ describe("templates lifecycle (create, update, delete)", () => {
         textValue: "Value 1",
         booleanValue: false,
         numberValue: 0,
-        timeValue: "",
+        timeValue: ZERO_DATE,
       },
       {
         id: NIL_UUID,
@@ -145,7 +146,7 @@ describe("templates lifecycle (create, update, delete)", () => {
         textValue: "Value 2",
         booleanValue: false,
         numberValue: 0,
-        timeValue: "",
+        timeValue: ZERO_DATE,
       },
     ];
 
@@ -153,6 +154,7 @@ describe("templates lifecycle (create, update, delete)", () => {
 
     expect(response.status).toBe(201);
     expect(data.fields).toHaveLength(2);
+    expect(data.fields.map(field => field.timeValue)).toEqual([ZERO_DATE, ZERO_DATE]);
     expect(data.fields![0]!.name).toBe("Custom Field 1");
     expect(data.fields![0]!.textValue).toBe("Value 1");
     expect(data.fields![1]!.name).toBe("Custom Field 2");
@@ -177,7 +179,7 @@ describe("templates lifecycle (create, update, delete)", () => {
         textValue: "Original Value",
         booleanValue: false,
         numberValue: 0,
-        timeValue: "",
+        timeValue: ZERO_DATE,
       },
     ];
 
@@ -212,7 +214,7 @@ describe("templates lifecycle (create, update, delete)", () => {
           textValue: "Updated Value",
           booleanValue: false,
           numberValue: 0,
-          timeValue: "",
+          timeValue: ZERO_DATE,
         },
         {
           id: NIL_UUID,
@@ -221,7 +223,7 @@ describe("templates lifecycle (create, update, delete)", () => {
           textValue: "New Value",
           booleanValue: false,
           numberValue: 0,
-          timeValue: "",
+          timeValue: ZERO_DATE,
         },
       ],
     };
