@@ -93,6 +93,9 @@ test("nested creation inherits the parent location and location dialogs never re
 
   // Create through the visible flow, then independently inspect the submitted
   // parent/location fields and the backend's resolved location.
+  expect(
+    await page.evaluate(() => document.cookie.split(";").some(cookie => cookie.trim() === "hb.auth.session=true"))
+  ).toBe(true);
   await page.goto(`/item/${box.id}`);
   await page.getByRole("button", { name: "Create Subitem", exact: true }).click();
   const createDialog = page.getByRole("dialog");
