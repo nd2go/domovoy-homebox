@@ -13,18 +13,10 @@ describe("user should be able to create an item and add an attachment", () => {
    * that can be used to delete the location from the backend server.
    */
   async function useLocation(api: UserClient): Promise<[EntityOut, () => Promise<void>]> {
-    // Locations must carry the group's location entity type; without an
-    // entityTypeId the backend defaults new entities to the item type.
-    const { response: typesResponse, data: entityTypes } = await api.entityTypes.getAll();
-    expect(typesResponse.status).toBe(200);
-    const locationType = entityTypes.find(t => t.isLocation);
-    expect(locationType).toBeTruthy();
-
     const { response, data } = await api.items.createLocation({
-      parentId: null,
+      ...(await factories.location(api)),
       name: `__test__.location.name_${increment}`,
       description: `__test__.location.description_${increment}`,
-      entityTypeId: locationType!.id,
     });
     expect(response.status).toBe(201);
     increment++;
@@ -42,7 +34,7 @@ describe("user should be able to create an item and add an attachment", () => {
     const [location, cleanup] = await useLocation(api);
 
     const { response, data: item } = await api.items.create({
-      parentId: null,
+      entityTypeId: await factories.entityTypeId(api),
       name: "test-item",
       tagIds: [],
       description: "test-description",
@@ -77,7 +69,7 @@ describe("user should be able to create an item and add an attachment", () => {
     const [location, cleanup] = await useLocation(api);
 
     const { response, data: item } = await api.items.create({
-      parentId: null,
+      entityTypeId: await factories.entityTypeId(api),
       name: faker.vehicle.model(),
       tagIds: [],
       description: faker.lorem.paragraph(1),
@@ -94,14 +86,12 @@ describe("user should be able to create an item and add an attachment", () => {
     ];
 
     // Add fields
-    const itemUpdate = {
-      ...item,
-      parentId: item.parent?.id || null,
-      tagIds: item.tags.map(l => l.id),
+    const itemUpdate: EntityUpdate = {
+      ...factories.itemUpdate(item),
       fields,
     };
 
-    const { response: updateResponse, data: item2 } = await api.items.update(item.id, itemUpdate as EntityUpdate);
+    const { response: updateResponse, data: item2 } = await api.items.update(item.id, itemUpdate);
     expect(updateResponse.status).toBe(200);
 
     expect(item2.fields).toHaveLength(fields.length);
@@ -114,7 +104,7 @@ describe("user should be able to create an item and add an attachment", () => {
 
     itemUpdate.fields = [fields[0]!, fields[1]!];
 
-    const { response: updateResponse2, data: item3 } = await api.items.update(item.id, itemUpdate as EntityUpdate);
+    const { response: updateResponse2, data: item3 } = await api.items.update(item.id, itemUpdate);
     expect(updateResponse2.status).toBe(200);
 
     expect(item3.fields).toHaveLength(2);
@@ -131,7 +121,7 @@ describe("user should be able to create an item and add an attachment", () => {
     const api = await sharedUserClient();
     const [location, cleanup] = await useLocation(api);
     const { response, data: item } = await api.items.create({
-      parentId: null,
+      entityTypeId: await factories.entityTypeId(api),
       name: faker.vehicle.model(),
       tagIds: [],
       description: faker.lorem.paragraph(1),
@@ -174,7 +164,7 @@ describe("user should be able to create an item and add an attachment", () => {
     for (let i = 1; i < locations.length; i++) {
       // Skip first one
       const { response, data: loc } = await api.items.createLocation({
-        parentId: lastLocationId,
+        ...(await factories.location(api, lastLocationId)),
         name: locations[i]!,
         description: "",
       });
@@ -184,6 +174,7 @@ describe("user should be able to create an item and add an attachment", () => {
     }
 
     const { response, data: item } = await api.items.create({
+      entityTypeId: await factories.entityTypeId(api),
       name: faker.vehicle.model(),
       tagIds: [],
       description: faker.lorem.paragraph(1),
@@ -209,6 +200,7 @@ describe("user should be able to create an item and add an attachment", () => {
     const [childsLocation, childsCleanup] = await useLocation(api);
 
     const { response: parentResponse, data: parent } = await api.items.create({
+      entityTypeId: await factories.entityTypeId(api),
       name: "parent-item",
       tagIds: [],
       description: "test-description",
@@ -219,6 +211,7 @@ describe("user should be able to create an item and add an attachment", () => {
     expect(parent.id).toBeTruthy();
 
     const { response: child1Response, data: child1Item } = await api.items.create({
+      entityTypeId: await factories.entityTypeId(api),
       name: "child1-item",
       tagIds: [],
       description: "test-description",
@@ -226,15 +219,16 @@ describe("user should be able to create an item and add an attachment", () => {
       parentId: childsLocation.id,
     });
     expect(child1Response.status).toBe(201);
-    const child1ItemUpdate = {
-      ...child1Item,
+    const child1ItemUpdate: EntityUpdate = {
+      ...factories.itemUpdate(child1Item),
       parentId: parent.id,
       tagIds: [],
     };
-    const { response: child1UpdatedResponse } = await api.items.update(child1Item.id, child1ItemUpdate as EntityUpdate);
+    const { response: child1UpdatedResponse } = await api.items.update(child1Item.id, child1ItemUpdate);
     expect(child1UpdatedResponse.status).toBe(200);
 
     const { response: child2Response, data: child2Item } = await api.items.create({
+      entityTypeId: await factories.entityTypeId(api),
       name: "child2-item",
       tagIds: [],
       description: "test-description",
@@ -242,16 +236,16 @@ describe("user should be able to create an item and add an attachment", () => {
       parentId: childsLocation.id,
     });
     expect(child2Response.status).toBe(201);
-    const child2ItemUpdate = {
-      ...child2Item,
+    const child2ItemUpdate: EntityUpdate = {
+      ...factories.itemUpdate(child2Item),
       parentId: parent.id,
       tagIds: [],
     };
-    const { response: child2UpdatedResponse } = await api.items.update(child2Item.id, child2ItemUpdate as EntityUpdate);
+    const { response: child2UpdatedResponse } = await api.items.update(child2Item.id, child2ItemUpdate);
     expect(child2UpdatedResponse.status).toBe(200);
 
-    const itemUpdate = {
-      ...parent,
+    const itemUpdate: EntityUpdate = {
+      ...factories.itemUpdate(parent),
       parentId: parentLocation.id,
       tagIds: [],
       syncChildEntityLocations: true,

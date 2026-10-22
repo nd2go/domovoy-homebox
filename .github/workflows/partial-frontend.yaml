@@ -2,9 +2,6 @@ name: Frontend
 
 permissions:
   contents: read
-  actions: read
-  checks: write
-  pull-requests: write
 
 on:
   workflow_call:
@@ -12,19 +9,26 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          persist-credentials: false
           fetch-depth: 0
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
+        with:
+          node-version: "24"
 
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 10
 
       - name: Install dependencies
-        run: pnpm install
+        id: install
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Run Lint
@@ -32,12 +36,19 @@ jobs:
         working-directory: frontend
 
       - name: Run Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm run typecheck
+        working-directory: frontend
+
+      - name: Build frontend
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm run build
         working-directory: frontend
 
   integration-tests:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17
@@ -54,8 +65,9 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install Task
@@ -71,24 +83,29 @@ jobs:
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
-          node-version: lts/*
+          node-version: "24"
 
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 10
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Run Integration Tests
         run: task test:ci
+        # These synthetic API tests register many users from one runner IP.
+        # Rate limiting is tested separately by the backend Go suite.
+        env:
+          HBOX_AUTH_RATE_LIMIT_ENABLED: "false"
   integration-tests-pgsql:
     strategy:
         matrix:
             database_version: [17,16,15]
     name: Integration Tests PGSQL ${{ matrix.database_version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:${{ matrix.database_version }}
@@ -105,8 +122,9 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install Task
@@ -122,15 +140,17 @@ jobs:
 
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
-          node-version: lts/*
+          node-version: "24"
 
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061
         with:
           version: 10
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Run Integration Tests
         run: task test:ci:postgresql
+        env:
+          HBOX_AUTH_RATE_LIMIT_ENABLED: "false"

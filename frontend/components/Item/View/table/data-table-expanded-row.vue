@@ -3,6 +3,7 @@
   import type { EntitySummary } from "~/lib/api/types/data-contracts";
   import TagChip from "@/components/Tag/Chip.vue";
   import Badge from "~/components/ui/badge/Badge.vue";
+  import ResolvedLocation from "../ResolvedLocation.vue";
 
   const props = defineProps<{
     item: EntitySummary;
@@ -34,9 +35,7 @@
     <div class="flex min-w-0 flex-1 flex-col gap-2">
       <h2 class="truncate text-xl font-bold">{{ item.name }}</h2>
       <Badge class="w-min text-nowrap bg-secondary text-secondary-foreground hover:bg-secondary/70 hover:underline">
-        <NuxtLink v-if="item.location" :to="`/location/${item.location.id}`">
-          {{ item.location.name }}
-        </NuxtLink>
+        <ResolvedLocation :item="item" />
       </Badge>
       <div class="flex flex-wrap gap-2">
         <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="sm" :ancestors="tag.ancestors" />
