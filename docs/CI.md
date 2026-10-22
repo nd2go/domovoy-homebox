@@ -13,6 +13,10 @@ passes only when Backend, Frontend and Browser all succeed. Failure, cancellatio
 skipped and missing results fail the gate. An outdated run is cancelled when a
 new commit arrives.
 
+After successful tool/dependency setup, independent backend build/tests and
+frontend typecheck/build still run when lint/typecheck fails. Each failure keeps
+its job and Required red; no failing command uses `continue-on-error`.
+
 Open a pull request's **Checks** tab to inspect the failing step. Browser jobs
 retain blob reports and failure traces for seven days, then merge available
 reports into an HTML report retained for 30 days. Backend coverage is retained
