@@ -5,7 +5,7 @@ import type { EntityCreate, EntityOut, EntityTypeSummary } from "../../lib/api/t
 
 // This scenario injects a failed API read with page.route; a PWA service worker
 // can otherwise serve that read without passing through Playwright routing.
-test.use({ serviceWorkers: "block" });
+test.use({ serviceWorkers: "block", trace: "retain-on-failure" });
 
 async function createEntity(request: APIRequestContext, body: EntityCreate): Promise<EntityOut> {
   const response = await request.post("/api/v1/entities", { data: body });
@@ -48,8 +48,18 @@ test("nested creation inherits the parent location and location dialogs never re
   await page.goto("/");
   await page.fill("input[type='text']", email);
   await page.fill("input[type='password']", password);
+  const loginResponse = page.waitForResponse(
+    response => response.url().endsWith("/api/v1/users/login") && response.request().method() === "POST"
+  );
   await page.click("button[type='submit']");
+  expect((await loginResponse).status()).toBe(200);
   await expect(page).toHaveURL("/home");
+  await expect(page.getByRole("heading", { name: "Quick Statistics", exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.cookie.split(";").some(cookie => cookie.trim() === "hb.auth.session=true"))
+    )
+    .toBe(true);
 
   const typesResponse = await page.request.get("/api/v1/entity-types");
   expect(typesResponse.ok()).toBe(true);
