@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
+  import { ZERO_DATE } from "~/lib/api/base/base-api";
   import { toast } from "@/components/ui/sonner";
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
@@ -606,7 +607,7 @@
         textValue: field.textValue,
         booleanValue: field.booleanValue,
         numberValue: field.numberValue,
-        timeValue: "",
+        timeValue: ZERO_DATE,
       })),
     };
 

@@ -98,6 +98,7 @@
 
 <script setup lang="ts">
   import { useI18n } from "vue-i18n";
+  import { ZERO_DATE } from "~/lib/api/base/base-api";
   import { toast } from "@/components/ui/sonner";
   import MdiPlus from "~icons/mdi/plus";
   import MdiDelete from "~icons/mdi/delete";
@@ -153,7 +154,7 @@
       textValue: "",
       booleanValue: false,
       numberValue: 0,
-      timeValue: "",
+      timeValue: ZERO_DATE,
     });
   }
 
