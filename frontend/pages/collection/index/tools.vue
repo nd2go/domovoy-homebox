@@ -343,8 +343,8 @@
     return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
   }
 
-  function formatCreated(iso: string): string {
-    return new Date(iso).toLocaleString();
+  function formatCreated(iso: string | Date): string {
+    return (iso instanceof Date ? iso : new Date(iso)).toLocaleString();
   }
 
   async function startBackup() {

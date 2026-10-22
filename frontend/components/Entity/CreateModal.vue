@@ -234,7 +234,6 @@
     EntityTemplateOut,
     EntityTemplateSummary,
     EntityOut,
-    EntitySummary,
     EntityTypeSummary,
   } from "~~/lib/api/types/data-contracts";
   import { useTagStore } from "~/stores/tags";
@@ -479,9 +478,9 @@
   // Used at submit to tell "left at the default" from "stored elsewhere".
   const inheritedLocationId = ref<string | null>(null);
 
-  function resolveInheritedLocation(entity: EntityOut | EntitySummary | null | undefined): string | null {
+  function resolveInheritedLocation(entity: EntityOut | null | undefined): string | null {
     if (!entity) return null;
-    const resolved = (entity as EntityOut).location?.id;
+    const resolved = entity.location?.id;
     if (resolved) return resolved;
     return entity.parent?.entityType?.isLocation ? entity.parent.id : null;
   }
@@ -515,7 +514,7 @@
 
       if (error || !data) {
         console.error("Parent item fetch error:", error);
-        inheritedLocationId.value = resolveInheritedLocation(newParent);
+        inheritedLocationId.value = null;
         return;
       }
 
@@ -636,7 +635,8 @@
 
     // Items must live somewhere, but a top-level location has no parent, so the
     // parent location selector is optional when creating a location.
-    if (!selectedEntityType.value?.isLocation && !form.location?.id) {
+    const selectedLocationId = form.location?.id;
+    if (!selectedEntityType.value?.isLocation && !selectedLocationId) {
       toast.error(t("components.entity.create_modal.toast.please_select_location"));
       return;
     }
@@ -668,12 +668,12 @@
       });
       error = result.error;
       data = result.data;
-    } else if (templateData.value) {
+    } else if (templateData.value && selectedLocationId) {
       // If a template is selected, use the template creation endpoint
       const templateRequest = {
         name: form.name,
         description: form.description,
-        parentId: form.location.id as string,
+        parentId: selectedLocationId,
         tagIds: form.tags,
         quantity: form.quantity,
         entityTypeId: selectedEntityType.value?.id || "",
@@ -686,9 +686,9 @@
       // Normal item creation without template
       // Only pin a location when it differs from what the item would inherit,
       // so it otherwise still follows the parent (#1688).
-      const chosenLocationId = (form.location?.id as string) || null;
+      const chosenLocationId = selectedLocationId || null;
       const out: EntityCreate = {
-        parentId: form.parentId || (form.location.id as string),
+        parentId: form.parentId || selectedLocationId,
         locationId:
           form.parentId && chosenLocationId && chosenLocationId !== inheritedLocationId.value ? chosenLocationId : null,
         name: form.name,
