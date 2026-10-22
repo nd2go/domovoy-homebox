@@ -578,11 +578,17 @@
       return;
     }
 
+    if (!item.value.entityType?.id) {
+      toast.error(t("items.toast.failed_save"));
+      return;
+    }
+
     const payload: EntityUpdate = {
       ...item.value,
       parentId: parent.value?.id || location.value?.id || null,
       locationId: parent.value?.id && locationExplicit.value ? location.value?.id || null : null,
       tagIds: item.value.tagIds,
+      entityTypeId: item.value.entityType.id,
       assetId: item.value.assetId,
       syncChildEntityLocations: item.value.syncChildEntityLocations,
     };

@@ -8,6 +8,7 @@ import type { EntitySummary } from "~/lib/api/types/data-contracts";
 
 import Currency from "~/components/global/Currency.vue";
 import DateTime from "~/components/global/DateTime.vue";
+import ResolvedLocation from "../ResolvedLocation.vue";
 import { cn } from "~/lib/utils";
 
 /**
@@ -143,24 +144,11 @@ export function makeColumns({
     },
     {
       id: "location",
-      accessorKey: "location",
-      header: ({ column }) =>
-        h(
-          Button,
-          {
-            variant: "ghost",
-            onClick: () => !disableSort && column.toggleSorting(column.getIsSorted() === "asc"),
-          },
-          () => sortable(column, "items.location")
-        ),
-      cell: ({ row }) => {
-        const item = row.original as EntitySummary;
-        const loc = (item.location || item.parent) as { id: string; name: string } | null;
-        if (loc) {
-          return h("a", { href: `/location/${loc.id}`, class: "hover:underline text-sm" }, loc.name);
-        }
-        return h("div", { class: "text-sm text-muted-foreground" }, "");
-      },
+      // EntitySummary has no location accessor to sort; fetch the resolved detail
+      // only when the location column is visible.
+      enableSorting: false,
+      header: () => t("items.location"),
+      cell: ({ row }) => h(ResolvedLocation, { item: row.original, class: "text-sm" }),
     },
     {
       id: "archived",

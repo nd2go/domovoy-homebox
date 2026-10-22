@@ -9,10 +9,12 @@
   import { toast } from "~/components/ui/sonner";
   import { useI18n } from "vue-i18n";
   import TagSelector from "~/components/Tag/Selector.vue";
+  import { commonItemLocation, loadItemLocation } from "~/lib/items/location";
 
-  const { closeDialog, registerOpenDialogCallback } = useDialog();
+  const { activeDialog, closeDialog, registerOpenDialogCallback } = useDialog();
 
-  const api = useUserApi();
+  const preferences = useViewPreferences();
+  const auth = useAuthContext();
   const { t } = useI18n();
   const tagStore = useTagStore();
 
@@ -20,6 +22,9 @@
 
   const items = ref<EntitySummary[]>([]);
   const saving = ref(false);
+  const loadingLocation = ref(false);
+  let openingRevision = 0;
+  let locationSelectionRevision = 0;
 
   const enabled = reactive({
     changeLocation: false,
@@ -30,6 +35,20 @@
   const newLocation = ref<EntitySummary | null>(null);
   const addTags = ref<string[]>([]);
   const removeTags = ref<string[]>([]);
+
+  watch(newLocation, () => locationSelectionRevision++, { flush: "sync" });
+  watch(activeDialog, dialog => {
+    if (dialog !== DialogID.ItemChangeDetails) openingRevision++;
+  });
+  watch(
+    () => [preferences.value.collectionId, auth.attachmentToken],
+    () => {
+      openingRevision++;
+      items.value = [];
+      newLocation.value = null;
+      if (activeDialog.value === DialogID.ItemChangeDetails) closeDialog(DialogID.ItemChangeDetails);
+    }
+  );
 
   const availableToAddTags = ref<TagOut[]>([]);
   const availableToRemoveTags = ref<TagOut[]>([]);
@@ -53,19 +72,33 @@
 
   onMounted(() => {
     const cleanup = registerOpenDialogCallback(DialogID.ItemChangeDetails, params => {
+      const revision = ++openingRevision;
       items.value = params.items;
+      saving.value = false;
+      loadingLocation.value = false;
+      newLocation.value = null;
+      addTags.value = [];
+      removeTags.value = [];
+      availableToAddTags.value = [];
+      availableToRemoveTags.value = [];
       enabled.changeLocation = params.changeLocation ?? false;
       enabled.addTags = params.addTags ?? false;
       enabled.removeTags = params.removeTags ?? false;
 
       if (params.changeLocation && params.items.length > 0) {
-        // if all locations are the same then set the current location to said location
-        if (
-          params.items[0]!.location &&
-          params.items.every(item => item.location?.id === params.items[0]!.location?.id)
-        ) {
-          newLocation.value = params.items[0]!.location;
-        }
+        loadingLocation.value = true;
+        const selectionRevision = locationSelectionRevision;
+        const api = useUserApi();
+        void Promise.all(params.items.map(item => loadItemLocation(id => api.items.get(id), item.id))).then(
+          locations => {
+            if (revision !== openingRevision || activeDialog.value !== DialogID.ItemChangeDetails) return;
+            // Do not overwrite a location the user chose while details loaded.
+            if (selectionRevision === locationSelectionRevision) {
+              newLocation.value = commonItemLocation(locations);
+            }
+            loadingLocation.value = false;
+          }
+        );
       }
 
       if (params.addTags && params.items.length > 0) {
@@ -84,35 +117,40 @@
 
   const save = async () => {
     const location = newLocation.value;
+    const changes = { ...enabled };
+    const selected = items.value;
     const tagsToAdd = addTags.value;
     const tagsToRemove = removeTags.value;
-    if (!items.value.length || (enabled.changeLocation && !location)) {
+    if (!selected.length || loadingLocation.value || (changes.changeLocation && !location)) {
       return;
     }
 
+    const revision = openingRevision;
+    const api = useUserApi();
     saving.value = true;
 
     // Process items sequentially to avoid database locking issues with concurrent write transactions
-    for (const item of items.value) {
+    for (const item of selected) {
+      if (revision !== openingRevision) return;
       const patch: EntityPatch = {
         id: item.id,
       };
 
-      if (enabled.changeLocation) {
+      if (changes.changeLocation) {
         patch.parentId = location!.id;
       }
 
       let currentTags = item.tags.map(l => l.id);
 
-      if (enabled.addTags) {
+      if (changes.addTags) {
         currentTags = currentTags.concat(tagsToAdd);
       }
 
-      if (enabled.removeTags) {
+      if (changes.removeTags) {
         currentTags = currentTags.filter(l => !tagsToRemove.includes(l));
       }
 
-      if (enabled.addTags || enabled.removeTags) {
+      if (changes.addTags || changes.removeTags) {
         patch.tagIds = Array.from(new Set(currentTags));
       }
 
@@ -125,6 +163,7 @@
       }
     }
 
+    if (revision !== openingRevision) return;
     closeDialog(DialogID.ItemChangeDetails, true);
     enabled.changeLocation = false;
     enabled.addTags = false;
@@ -158,7 +197,11 @@
         :name="$t('components.item.view.change_details.remove_tags')"
       />
       <DialogFooter>
-        <Button type="submit" :disabled="saving || (enabled.changeLocation && !newLocation)" @click="save">
+        <Button
+          type="submit"
+          :disabled="saving || loadingLocation || (enabled.changeLocation && !newLocation)"
+          @click="save"
+        >
           <span v-if="!saving">{{ $t("global.save") }}</span>
           <MdiLoading v-else class="animate-spin" />
         </Button>
