@@ -3,12 +3,6 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { EntityCreate, EntityOut, EntityTypeSummary } from "../../lib/api/types/data-contracts";
 
-// Keep real UI login and the server-set HttpOnly cookies. This local harness
-// uses explicit cookie domains, which WebKit drops for the localhost hostname.
-const baseURL = new URL(process.env.E2E_BASE_URL || "http://localhost:3000");
-if (baseURL.hostname === "localhost") baseURL.hostname = "127.0.0.1";
-test.use({ baseURL: baseURL.href });
-
 async function createEntity(request: APIRequestContext, body: EntityCreate): Promise<EntityOut> {
   const response = await request.post("/api/v1/entities", { data: body });
   expect(response.status()).toBe(201);
